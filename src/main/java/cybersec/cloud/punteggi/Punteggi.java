@@ -1,5 +1,6 @@
 package cybersec.cloud.punteggi;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +13,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
 
 @Path("/punteggi")
 @Produces(MediaType.APPLICATION_JSON)
@@ -26,16 +30,32 @@ public class Punteggi {
     }
     
     @POST
-    public void postPunteggio(@QueryParam("giocatore") String giocatore, 
+    public Response postPunteggio(@QueryParam("giocatore") String giocatore, 
             @QueryParam("punteggio") Optional<Integer> punteggio) {
         
+        // Se il giocatore è già presente nella collezione,
+        // restituisce un messaggio di errore (CONFLICT)
+        if(indicePunteggio(giocatore) != -1) {
+            return Response.status(Status.CONFLICT)
+                    .entity("Giocatore già inserito in precedenza")
+                    .type(MediaType.TEXT_PLAIN)
+                    .build();
+        }
+        
+        // Se il giocatore non è presente, lo aggiunge
+        // (utilizzando il punteggio di default, se non specificato)
         Punteggio p;
         if(punteggio.isPresent())
             p = new Punteggio(giocatore,punteggio.get());
         else
             p = new Punteggio(giocatore,punteggioIniziale);
-        
         punteggi.add(p);
+        
+        // Dopo aver aggiunto il nuovo giocatore, risponde
+        // al cliente con un messaggio opportuno (CREATED)
+        URI u = UriBuilder.fromResource(Punteggi.class).path(giocatore).build();
+        return Response.created(u)
+                .build();
     }
     
     private int indicePunteggio(String giocatore) {
